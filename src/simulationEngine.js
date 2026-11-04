@@ -1,6 +1,6 @@
-// WiFi Simulator Engine v2.1
-// Model: M(t)/G/1/K Multi-Class Non-Stationary Queue
-// Shannon-Hartley Capacity + Non-Homogeneous Poisson Process (NHPP) + Work-Conserving WFQ
+// WiFi Simulator Engine v2.2
+// Model: M(t)/M/K/K Multi-Class Non-Stationary Loss System
+// Shannon-Hartley Capacity + Non-Homogeneous Poisson Process (NHPP) + True Erlang-B + Work-Conserving GPS
 
 export const CLASS_CONFIG = [
   {
@@ -123,6 +123,18 @@ export function samplePoisson(lambda) {
     p *= Math.random()
   } while (p > L)
   return k - 1
+}
+
+// True Erlang-B Loss Formula for M/M/K/K (or M/G/K/K) multi-server loss systems
+// Computes exact blocking probability B(K, A) where A is the offered load in Erlangs
+// Uses stable numerical recursion: B_m = (A * B_{m-1}) / (m + A * B_{m-1})
+export function computeErlangB(K, offeredLoad) {
+  if (offeredLoad <= 0 || K <= 0) return 0
+  let B = 1.0
+  for (let m = 1; m <= K; m++) {
+    B = (offeredLoad * B) / (m + offeredLoad * B)
+  }
+  return Math.max(0, Math.min(1, B))
 }
 
 // Shannon-Hartley capacity computation
@@ -294,21 +306,8 @@ export function stepSimulation(state, params, deltaMinutes) {
 
   const totalLambda = effectiveLambdas.reduce((s, l) => s + l, 0)
 
-  // Erlang-B blocking probability with L'Hopital limit at rho = 1
-  let pk = 0
-  if (rho > 0) {
-    if (Math.abs(rho - 1.0) < 1e-4) {
-      pk = 1 / (K + 1)
-    } else {
-      const rhoPowK = Math.pow(rho, K)
-      if (!isFinite(rhoPowK) || rhoPowK > 1e12) {
-        pk = (rho - 1) / rho
-      } else {
-        pk = (rhoPowK * (1 - rho)) / (1 - rhoPowK * rho)
-      }
-    }
-  }
-  pk = Math.max(0, Math.min(1, pk))
+  // True Erlang-B blocking probability for M(t)/M/K/K multi-server loss system: B(K, A)
+  const pk = computeErlangB(K, offeredLoad)
 
   // Empirical rejection rate
   const totalServed = newClassStats.reduce((s, c) => s + c.served, 0)

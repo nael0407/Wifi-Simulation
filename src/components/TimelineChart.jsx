@@ -200,10 +200,10 @@ export default function TimelineChart({ data, currentHour, params }) {
               </div>
             </div>
 
-            {/* Erlang-B Pk chart */}
+            {/* Erlang-B B(K, A) chart */}
             <div className="bg-white rounded-xl p-2.5 shadow-card border border-border/40 flex flex-col justify-between">
               <div className="flex justify-between items-center mb-1">
-                <span className="text-[10px] text-muted uppercase tracking-wide font-medium">Erlang-B P_K(t) Prob.</span>
+                <span className="text-[10px] text-muted uppercase tracking-wide font-medium">Erlang-B B(K, A) Prob.</span>
                 <span className="text-[10px] font-mono font-semibold text-purple-600">
                   {data[data.length - 1]?.pk ?? 0}%
                 </span>
@@ -215,7 +215,7 @@ export default function TimelineChart({ data, currentHour, params }) {
                     <XAxis dataKey="t" tick={{ fontSize: 8, fill: '#86868B' }} tickLine={false} axisLine={false} />
                     <YAxis tick={{ fontSize: 8, fill: '#86868B' }} tickLine={false} axisLine={false} domain={[0, 100]} />
                     <Tooltip content={<CustomTooltip />} />
-                    <Line type="monotone" dataKey="pk" stroke="#AF52DE" strokeWidth={1.5} dot={false} name="P_K %" isAnimationActive={false} />
+                    <Line type="monotone" dataKey="pk" stroke="#AF52DE" strokeWidth={1.5} dot={false} name="Erlang-B %" isAnimationActive={false} />
                   </LineChart>
                 </ResponsiveContainer>
               </div>

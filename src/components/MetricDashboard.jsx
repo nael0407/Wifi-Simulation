@@ -73,10 +73,10 @@ export default function MetricDashboard({ simState, params }) {
           accent={rho >= 1 ? '#FF3B30' : rho > 0.7 ? '#FF9500' : '#34C759'}
         />
         <KpiCard
-          label="Erlang-B P_K(t)"
+          label="Erlang-B B(K, A)"
           value={`${pk > 0 ? (pk * 100).toFixed(2) : '0.00'}`}
           unit="%"
-          sub="Prob. Buffer Penuh"
+          sub="Prob. Rugi M/M/K/K"
           accent="#5856D6"
         />
         <KpiCard

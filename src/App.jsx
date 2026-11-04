@@ -95,7 +95,7 @@ export default function App() {
                 WiFi Performance Simulator
               </h1>
               <p className="text-[10px] text-muted leading-tight truncate">
-                M(t)/G/1/K Queue · Shannon Capacity · Diurnal NHPP
+                M(t)/M/K/K Loss System · Shannon Capacity · Diurnal NHPP
               </p>
             </div>
           </div>

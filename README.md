@@ -1,5 +1,5 @@
 # WiFi Network Performance Simulator
-### *Stochastic $M(t)/G/1/K$ Multi-Class Queueing & Wireless Propagation Engine*
+### *Stochastic $M(t)/M/K/K$ Multi-Class Loss System & Wireless Propagation Engine*
 
 [![Live Demo](https://img.shields.io/badge/Live_Demo-wifi--simulation.vercel.app-0071E3?logo=vercel&logoColor=white)](https://wifi-simulation.vercel.app/)
 [![React](https://img.shields.io/badge/React-18.3.1-61DAFB?logo=react&logoColor=black)](https://react.dev/)
@@ -8,7 +8,7 @@
 [![Recharts](https://img.shields.io/badge/Recharts-2.12.7-22b5bf)](https://recharts.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-An industry-grade, interactive web-based simulation platform designed to model and evaluate **heterogeneous wireless network performance** under stochastic conditions. Built around an **$M(t)/G/1/K$ multi-class queueing model**, the simulator bridges theoretical queueing systems, empirical propagation models, and MAC-layer scheduling mechanisms to analyze throughput degradation, blocking probabilities, and user starvation in high-density WiFi environments.
+An industry-grade, interactive web-based simulation platform designed to model and evaluate **heterogeneous wireless network performance** under stochastic conditions. Built around an **$M(t)/M/K/K$ multi-class loss model**, the simulator bridges theoretical queueing systems, empirical propagation models, and MAC-layer scheduling mechanisms to analyze throughput degradation, blocking probabilities, and user starvation in high-density WiFi environments.
 
 **Live Interactive Deployment**: [https://wifi-simulation.vercel.app/](https://wifi-simulation.vercel.app/)
 
@@ -22,7 +22,7 @@ An industry-grade, interactive web-based simulation platform designed to model a
 - [Key Features](#key-features)
 - [System Architecture](#system-architecture)
 - [Mathematical & Theoretical Formulation](#mathematical--theoretical-formulation)
-  - [1. Queueing Model: $M(t)/G/1/K$ Multi-Class](#1-queueing-model-mtg1k-multi-class)
+  - [1. Queueing Model: $M(t)/M/K/K$ Multi-Class Loss System](#1-queueing-model-mtmkk-multi-class-loss-system)
   - [2. Non-Homogeneous Poisson Arrival Process (NHPP)](#2-non-homogeneous-poisson-arrival-process-nhpp)
   - [3. Wireless Channel Propagation & Shannon-Hartley Capacity](#3-wireless-channel-propagation--shannon-hartley-capacity)
   - [4. MAC Layer Scheduling: Best Effort vs. WFQ](#4-mac-layer-scheduling-best-effort-vs-wfq)
@@ -102,7 +102,7 @@ Real-world wireless local area networks (WLANs) are governed by inherent uncerta
   * Active connections vs. total buffer capacity ($N / K$).
   * Empirical session blocking rate ($P_{\text{block}}$).
   * Instantaneous traffic intensity ($\rho(t)$) with stability threshold alerts ($\rho \ge 1.0$).
-  * Theoretical Erlang-B blocking probability ($P_K(t)$).
+  * Theoretical Erlang-B blocking probability ($B(K, A)$).
   * Estimated RTT contention latency (ms).
   * SLA compliance percentage based on per-class bandwidth thresholds.
   * Per-class throughput distribution bars with active user counts and SLA target indicators.
@@ -136,7 +136,7 @@ flowchart TD
         F --> G["5. Scheduler Bandwidth Allocation (BE vs. Work-Conserving WFQ)"]
         G --> H["6. Throughput Computation: T_act = min(C_shannon, BW_share)"]
         H --> I["7. Departure Processing: Exp(mu_i) Service Time Countdown"]
-        I --> J["8. Queue State Aggregator: rho(t), P_K(t), Latency, SLA Compliance"]
+        I --> J["8. State Aggregator: rho(t), Erlang-B B(K, A), Latency, SLA Compliance"]
     end
 
     subgraph Presentation ["Presentation & Telemetry Layer"]
@@ -151,12 +151,12 @@ flowchart TD
 
 ## Mathematical & Theoretical Formulation
 
-### 1. Queueing Model: $M(t)/G/1/K$ Multi-Class
-Using Kendall's extended notation:
-* **$M(t)$**: Non-stationary Markovian Poisson arrival process.
-* **$G$**: General / class-specific service time distribution (exponential parameter $\mu_i$).
-* **$1$**: Single shared radio server (Access Point).
-* **$K$**: Finite system capacity (maximum concurrent active associations).
+### 1. Queueing Model: $M(t)/M/K/K$ Multi-Class Loss System
+Using Kendall's extended queueing notation:
+* **$M(t)$**: Non-stationary Markovian Poisson arrival process with diurnal rate variation $\lambda_i(t)$.
+* **$M$**: Markovian (exponential) service duration distribution with class-specific parameter $\mu_i$ ($\text{Exp}(\mu_i)$).
+* **$K$**: Number of concurrent parallel servers (maximum concurrent active wireless association slots).
+* **$K$**: Total system capacity with zero waiting room; an arriving session finding all $K$ servers occupied is immediately blocked and dropped without queueing (pure loss system).
 * **Multi-Class**: 6 distinct traffic classes with independent parameters $(\lambda_i, \mu_i, w_i)$.
 
 ### 2. Non-Homogeneous Poisson Arrival Process (NHPP)
@@ -204,10 +204,13 @@ $$T_{\text{actual}}(j) = \min\left(C_{\text{Shannon}}(j),\, \text{BW}_{\text{sha
 Total offered load in Erlangs and normalized system traffic intensity:
 $$A(t) = \sum_{i=0}^5 \frac{\lambda_i(t)}{\mu_i}, \qquad \rho(t) = \frac{A(t)}{K}$$
 
-Under finite capacity $K$, the theoretical connection blocking probability (Erlang-B loss formula) is:
-$$P_K(t) = \frac{\rho(t)^K \cdot (1 - \rho(t))}{1 - \rho(t)^{K+1}}$$
+Under finite capacity of $K$ parallel connection servers and zero waiting buffer, the theoretical connection blocking probability is governed by the exact **Erlang-B loss formula** ($M/M/K/K$):
+$$B(K, A(t)) = \frac{\frac{A(t)^K}{K!}}{\sum_{n=0}^K \frac{A(t)^n}{n!}}$$
 
-* **Stability criterion**: $\rho(t) < 1.0$. When $\rho(t) \ge 1.0$, system demand exceeds the maximum concurrent association capacity $K$, driving buffer saturation and elevated rejection rates.
+In the simulation engine, this is evaluated using the numerically stable backwards recurrence:
+$$B_0 = 1, \qquad B_m = \frac{A(t) \cdot B_{m-1}}{m + A(t) \cdot B_{m-1}} \quad \text{for } m = 1, 2, \dots, K$$
+
+* **Stability criterion**: $\rho(t) < 1.0$. When $\rho(t) \ge 1.0$, offered traffic load exceeds the total server pool capacity $K$, driving peak connection rejections.
 
 ---
 
@@ -265,7 +268,7 @@ Wifi-Simulation/
     ├── App.jsx                  # Main application orchestrator & layout shell
     ├── index.css                # Global styles, typography, and utility classes
     ├── main.jsx                 # React DOM mount entry
-    ├── simulationEngine.js      # Pure mathematical engine (M(t)/G/1/K, Shannon, WFQ, CSV)
+    ├── simulationEngine.js      # Pure mathematical engine (M(t)/M/K/K, Shannon, WFQ, CSV)
     └── components/
         ├── NetworkCanvas.jsx    # 2D Canvas renderer with hover telemetry popover
         ├── MetricDashboard.jsx  # Bento dashboard for KPIs and throughput bars
@@ -326,7 +329,7 @@ Wifi-Simulation/
 
 ## Academic References
 
-1. **Kleinrock, L. (1976).** *Queueing Systems, Volume 1: Theory.* John Wiley & Sons. *(Foundational theory for $M/G/1/K$ systems and multi-class traffic conservation laws).*
+1. **Kleinrock, L. (1975).** *Queueing Systems, Volume 1: Theory.* John Wiley & Sons. *(Foundational theory for Markovian loss systems, $M/M/m/m$ queues, and multi-class conservation laws).*
 2. **Goldsmith, A. (2005).** *Wireless Communications.* Cambridge University Press. *(Log-distance path loss, log-normal shadowing, and Shannon capacity over fading channels).*
 3. **Massey, W. A., & Whitt, W. (1994).** *An analysis of the modified offered-load approximation for the nonstationary Erlang loss model.* The Annals of Applied Probability, 4(4), 1145–1160. *(Mathematical justification for NHPP in telecommunications).*
 4. **Parekh, A. K., & Gallager, R. G. (1993).** *A generalized processor sharing approach to flow control in integrated services networks: the single-node case.* IEEE/ACM Transactions on Networking, 1(3), 344–357. *(Foundations of Weighted Fair Queueing).*
