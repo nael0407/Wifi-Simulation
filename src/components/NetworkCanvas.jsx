@@ -1,26 +1,30 @@
-import React, { useRef, useEffect, useCallback } from 'react'
+import React, { useRef, useEffect, useCallback, useState } from 'react'
 import { CLASS_CONFIG } from '../simulationEngine.js'
 
 export default function NetworkCanvas({ users, params, isRunning, arrivals = [], departures = [] }) {
   const canvasRef = useRef(null)
+  const containerRef = useRef(null)
   const animFrameRef = useRef(null)
   const usersRef = useRef(users)
   const arrivalsRef = useRef(new Set())
   const departuresRef = useRef(new Set())
+
+  const [hoveredUser, setHoveredUser] = useState(null)
+  const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 })
 
   useEffect(() => { usersRef.current = users }, [users])
 
   useEffect(() => {
     arrivals.forEach(id => {
       arrivalsRef.current.add(id)
-      setTimeout(() => arrivalsRef.current.delete(id), 500)
+      setTimeout(() => arrivalsRef.current.delete(id), 600)
     })
   }, [arrivals])
 
   useEffect(() => {
     departures.forEach(id => {
       departuresRef.current.add(id)
-      setTimeout(() => departuresRef.current.delete(id), 400)
+      setTimeout(() => departuresRef.current.delete(id), 500)
     })
   }, [departures])
 
@@ -28,8 +32,23 @@ export default function NetworkCanvas({ users, params, isRunning, arrivals = [],
     const canvas = canvasRef.current
     if (!canvas) return
     const ctx = canvas.getContext('2d')
-    const W = canvas.width
-    const H = canvas.height
+    const container = containerRef.current
+    if (!container) return
+
+    const rect = container.getBoundingClientRect()
+    const dpr = window.devicePixelRatio || 1
+
+    // Ensure backing store matches high-DPI
+    if (canvas.width !== Math.floor(rect.width * dpr) || canvas.height !== Math.floor(rect.height * dpr)) {
+      canvas.width = Math.floor(rect.width * dpr)
+      canvas.height = Math.floor(rect.height * dpr)
+    }
+
+    ctx.save()
+    ctx.scale(dpr, dpr)
+
+    const W = rect.width
+    const H = rect.height
     const cx = W / 2, cy = H / 2
     const R = Math.min(W, H) * 0.42
 
@@ -40,17 +59,17 @@ export default function NetworkCanvas({ users, params, isRunning, arrivals = [],
 
     // Dot grid pattern
     ctx.fillStyle = '#E5E5EA'
-    for (let gx = 12; gx < W; gx += 24) {
-      for (let gy = 12; gy < H; gy += 24) {
+    for (let gx = 14; gx < W; gx += 26) {
+      for (let gy = 14; gy < H; gy += 26) {
         ctx.beginPath()
-        ctx.arc(gx, gy, 1, 0, Math.PI * 2)
+        ctx.arc(gx, gy, 0.9, 0, Math.PI * 2)
         ctx.fill()
       }
     }
 
-    // Range circles (d25%, d50%, d75%, d100%)
+    // Range concentric circles (25%, 50%, 75%, 100%)
     for (let ring = 1; ring <= 4; ring++) {
-      const ringR = R * ring / 4
+      const ringR = (R * ring) / 4
       ctx.beginPath()
       ctx.arc(cx, cy, ringR, 0, Math.PI * 2)
       ctx.strokeStyle = ring === 4 ? '#C7C7CC' : '#E5E5EA'
@@ -60,24 +79,31 @@ export default function NetworkCanvas({ users, params, isRunning, arrivals = [],
       ctx.setLineDash([])
     }
 
-    // Range labels
+    // Range distance labels
     ctx.font = '10px "JetBrains Mono", monospace'
-    ctx.fillStyle = '#C7C7CC'
+    ctx.fillStyle = '#8E8E93'
     ctx.textAlign = 'left'
     const dMax = params.dMax
-    ;[0.25, 0.5, 0.75, 1.0].forEach((frac, i) => {
+    ;[0.25, 0.5, 0.75, 1.0].forEach((frac) => {
       const dist = Math.round(frac * dMax)
-      ctx.fillText(`${dist}m`, cx + R * frac + 4, cy - 4)
+      ctx.fillText(`${dist}m`, cx + R * frac + 5, cy - 4)
     })
 
-    // AP icon at center
-    const apSize = 22
+    // AP center icon with glowing antenna radius
+    const apSize = 20
+    const apPulse = (Date.now() % 2400) / 2400
+    ctx.beginPath()
+    ctx.arc(cx, cy, apSize + apPulse * 18, 0, Math.PI * 2)
+    ctx.strokeStyle = `rgba(0, 113, 227, ${0.4 * (1 - apPulse)})`
+    ctx.lineWidth = 1.5
+    ctx.stroke()
+
     ctx.fillStyle = '#0071E3'
     ctx.beginPath()
     ctx.arc(cx, cy, apSize, 0, Math.PI * 2)
     ctx.fill()
 
-    // Tulisan AP di tengah
+    // AP label
     ctx.fillStyle = '#FFFFFF'
     ctx.font = 'bold 11px Inter, sans-serif'
     ctx.textAlign = 'center'
@@ -85,85 +111,85 @@ export default function NetworkCanvas({ users, params, isRunning, arrivals = [],
     ctx.fillText('AP', cx, cy)
     ctx.textBaseline = 'alphabetic'
 
-    // Users
+    // Render User Nodes
     const currentUsers = usersRef.current
-    currentUsers.forEach(user => {
-      const cls = CLASS_CONFIG[user.classId]
-      const ux = cx + (user.x - 0.5) * R * 2
-      const uy = cy + (user.y - 0.5) * R * 2
+    const now = Date.now()
 
-      // Opacity based on actual visual distance from AP center
-      const visualDist = Math.sqrt((ux - cx) ** 2 + (uy - cy) ** 2)
-      const normalizedDist = Math.min(visualDist / R, 1.0)
-      const opacity = Math.max(0.25, 1.0 - normalizedDist * 0.75)
+    currentUsers.forEach(user => {
+      const cls = CLASS_CONFIG[user.classId] || CLASS_CONFIG[0]
+
+      // Strict radial projection matching physical distance
+      const userR = (Math.min(user.dist, params.dMax) / params.dMax) * R
+      const ux = cx + userR * Math.cos(user.theta ?? 0)
+      const uy = cy + userR * Math.sin(user.theta ?? 0)
+
+      // Store computed screen coords on user object for hover hit testing
+      user._screenX = ux
+      user._screenY = uy
+
+      const normalizedDist = Math.min(userR / R, 1.0)
+      const opacity = Math.max(0.35, 1.0 - normalizedDist * 0.65)
 
       const isArriving = arrivalsRef.current.has(user.id)
       const isDeparting = departuresRef.current.has(user.id)
+      const isHovered = hoveredUser && hoveredUser.id === user.id
 
-      // Physical starvation: SINR < 10 linear (~10 dB) = sinyal buruk di tepi jangkauan
+      // Physical starvation: SINR < 10 linear (approx < 10 dB)
       const isPhysicalStarving = user.sinr < 10
-      const nodeColor = isPhysicalStarving ? '#C0392B' : cls.color
+      const nodeColor = isPhysicalStarving ? '#FF3B30' : cls.color
 
-      // Scheduling starvation: throughput < 30% dari jatah rata-rata per user
+      // Scheduling starvation: throughput < 60% of average fair share
       const fairShare = params.apCapacity / Math.max(params.K, 1)
-      const isStarving = !isPhysicalStarving && user.throughput !== undefined && user.throughput < fairShare * 0.6
-      if (isStarving && !isPhysicalStarving) {
-        const pulse = (Date.now() % 1200) / 1200
-        const ringOpacity = (1 - pulse) * 0.6
-        const ringR = 7 + pulse * 14
+      const isSchedulingStarving = !isPhysicalStarving && user.throughput !== undefined && user.throughput < fairShare * 0.6
+
+      // Draw scheduling starvation indicator
+      if (isSchedulingStarving) {
+        const pulse = (now % 1200) / 1200
+        const ringR = 8 + pulse * 12
         ctx.beginPath()
         ctx.arc(ux, uy, ringR, 0, Math.PI * 2)
-        ctx.strokeStyle = `rgba(0, 113, 227, ${ringOpacity})`
+        ctx.strokeStyle = `rgba(0, 113, 227, ${(1 - pulse) * 0.7})`
         ctx.lineWidth = 1.5
         ctx.setLineDash([3, 3])
         ctx.stroke()
         ctx.setLineDash([])
       }
 
-      // Node glow
-      const grd = ctx.createRadialGradient(ux, uy, 0, ux, uy, 10)
-      grd.addColorStop(0, nodeColor + Math.round(opacity * 80).toString(16).padStart(2, '0'))
+      // Draw hover highlight halo
+      if (isHovered) {
+        ctx.beginPath()
+        ctx.arc(ux, uy, 14, 0, Math.PI * 2)
+        ctx.strokeStyle = '#0071E3'
+        ctx.lineWidth = 2
+        ctx.stroke()
+      }
+
+      // Node soft gradient glow
+      const grd = ctx.createRadialGradient(ux, uy, 0, ux, uy, 12)
+      grd.addColorStop(0, nodeColor + '99')
       grd.addColorStop(1, 'transparent')
       ctx.fillStyle = grd
       ctx.beginPath()
-      ctx.arc(ux, uy, 10, 0, Math.PI * 2)
+      ctx.arc(ux, uy, 12, 0, Math.PI * 2)
       ctx.fill()
 
-      // Main circle
-      ctx.globalAlpha = isArriving ? 0.9 : isDeparting ? 0.3 : opacity
+      // Core Node Circle
+      ctx.globalAlpha = isArriving ? 1.0 : isDeparting ? 0.2 : opacity
       ctx.beginPath()
-      ctx.arc(ux, uy, isArriving ? 8 : 6, 0, Math.PI * 2)
+      ctx.arc(ux, uy, isHovered ? 8 : isArriving ? 7 : 5.5, 0, Math.PI * 2)
       ctx.fillStyle = nodeColor
       ctx.fill()
 
-      // Soft drop shadow
+      // Drop shadow
       ctx.shadowColor = nodeColor
-      ctx.shadowBlur = 4
+      ctx.shadowBlur = isHovered ? 8 : 4
       ctx.fill()
       ctx.shadowBlur = 0
-      ctx.globalAlpha = 1
+      ctx.globalAlpha = 1.0
     })
 
-    // Legend bottom
-    const legendY = H - 14
-    ctx.font = '10px Inter, sans-serif'
-    ctx.textAlign = 'left'
-
-    const legendItems = [
-      { color: '#0071E3', label: 'Aktif' },
-      { color: '#C0392B', label: 'Physical Starvation' },
-    ]
-    let lx = 12
-    legendItems.forEach(({ color, label }) => {
-      ctx.beginPath()
-      ctx.arc(lx + 5, legendY, 4, 0, Math.PI * 2)
-      ctx.fillStyle = color
-      ctx.fill()
-      ctx.fillStyle = '#86868B'
-      ctx.fillText(label, lx + 13, legendY + 4)
-      lx += ctx.measureText(label).width + 28
-    })
-  }, [params])
+    ctx.restore()
+  }, [params, hoveredUser])
 
   useEffect(() => {
     const loop = () => {
@@ -174,28 +200,168 @@ export default function NetworkCanvas({ users, params, isRunning, arrivals = [],
     return () => cancelAnimationFrame(animFrameRef.current)
   }, [drawFrame])
 
-  useEffect(() => {
-    const canvas = canvasRef.current
-    if (!canvas) return
-    const resize = () => {
-      const rect = canvas.parentElement.getBoundingClientRect()
-      canvas.width = rect.width
-      canvas.height = rect.height
+  // Mouse move handler for interactive Node Inspection
+  const handleMouseMove = (e) => {
+    const container = containerRef.current
+    if (!container) return
+    const rect = container.getBoundingClientRect()
+    const mouseX = e.clientX - rect.left
+    const mouseY = e.clientY - rect.top
+
+    let closestUser = null
+    let minDistance = 16 // detection radius in pixels
+
+    for (const u of usersRef.current) {
+      if (u._screenX !== undefined && u._screenY !== undefined) {
+        const d = Math.hypot(u._screenX - mouseX, u._screenY - mouseY)
+        if (d < minDistance) {
+          minDistance = d
+          closestUser = u
+        }
+      }
     }
-    resize()
-    const ro = new ResizeObserver(resize)
-    ro.observe(canvas.parentElement)
-    return () => ro.disconnect()
-  }, [])
+
+    if (closestUser) {
+      setHoveredUser(closestUser)
+      setTooltipPos({ x: closestUser._screenX, y: closestUser._screenY })
+    } else {
+      setHoveredUser(null)
+    }
+  }
+
+  const handleMouseLeave = () => {
+    setHoveredUser(null)
+  }
+
+  const hoveredClass = hoveredUser ? (CLASS_CONFIG[hoveredUser.classId] || CLASS_CONFIG[0]) : null
 
   return (
-    <div className="relative w-full h-full">
-      <canvas ref={canvasRef} className="w-full h-full" />
+    <div
+      ref={containerRef}
+      className="relative w-full h-full cursor-crosshair select-none"
+      onMouseMove={handleMouseMove}
+      onMouseLeave={handleMouseLeave}
+    >
+      <canvas ref={canvasRef} className="w-full h-full block" />
+
+      {/* Floating Node Telemetry Popover */}
+      {hoveredUser && hoveredClass && (
+        <div
+          className="absolute z-30 pointer-events-none transform -translate-x-1/2 -translate-y-full mb-3 transition-transform duration-75"
+          style={{
+            left: `${Math.max(130, Math.min(tooltipPos.x, (containerRef.current?.clientWidth || 300) - 130))}px`,
+            top: `${Math.max(10, tooltipPos.y - 12)}px`,
+          }}
+        >
+          <div className="bg-white/95 backdrop-blur-md rounded-xl p-3 shadow-2xl border border-border text-xs min-w-[240px] text-charcoal">
+            {/* Header */}
+            <div className="flex items-center justify-between pb-2 mb-2 border-b border-border/80">
+              <span className="font-semibold flex items-center gap-1.5">
+                <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: hoveredClass.color }} />
+                <span>{hoveredClass.name}</span>
+                <span className="text-[10px] text-muted font-mono font-normal">#{hoveredUser.id}</span>
+              </span>
+              <span
+                className="text-[10px] font-semibold px-2 py-0.5 rounded-full"
+                style={{
+                  backgroundColor: hoveredUser.slaSatisfied ? '#34C75920' : '#FF3B3020',
+                  color: hoveredUser.slaSatisfied ? '#34C759' : '#FF3B30',
+                }}
+              >
+                {hoveredUser.slaSatisfied ? 'SLA Met' : 'SLA Violated'}
+              </span>
+            </div>
+
+            {/* Grid Metrics */}
+            <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-[11px] font-mono">
+              <span className="text-muted">Jarak AP:</span>
+              <span className="font-medium text-right text-charcoal">{hoveredUser.dist} m</span>
+
+              <span className="text-muted">Daya Terima (Prx):</span>
+              <span className="font-medium text-right text-charcoal">{hoveredUser.prx} dBm</span>
+
+              <span className="text-muted">SINR:</span>
+              <span className="font-medium text-right text-charcoal">{hoveredUser.sinrDb} dB</span>
+
+              <span className="text-muted">Kapasitas Shannon:</span>
+              <span className="font-medium text-right text-sfblue">{hoveredUser.capacity} Mbps</span>
+
+              <span className="text-muted">Jatah Scheduler:</span>
+              <span className="font-medium text-right text-charcoal">{hoveredUser.bwShare} Mbps</span>
+
+              <span className="text-muted">Throughput Aktual:</span>
+              <span className="font-bold text-right" style={{ color: hoveredClass.color }}>
+                {hoveredUser.throughput} Mbps
+              </span>
+
+              <span className="text-muted">Sisa Sesi:</span>
+              <span className="font-medium text-right text-charcoal">
+                {hoveredUser.remainingTime.toFixed(1)} min
+              </span>
+            </div>
+
+            {/* Starvation Category tag */}
+            <div className="mt-2 pt-1.5 border-t border-border/60 flex items-center justify-between text-[10px]">
+              <span className="text-muted">Status Kanal:</span>
+              <span className="font-medium">
+                {hoveredUser.sinr < 10 ? (
+                  <span className="text-red-500 font-semibold flex items-center gap-1.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-red-500 inline-block" />
+                    Physical Starvation
+                  </span>
+                ) : hoveredUser.throughput < (params.apCapacity / Math.max(params.K, 1)) * 0.6 ? (
+                  <span className="text-amber-500 font-semibold flex items-center gap-1.5">
+                    <span className="w-1.5 h-1.5 rounded-full border border-sfblue border-dashed inline-block" />
+                    Scheduling Limited
+                  </span>
+                ) : (
+                  <span className="text-emerald-600 font-semibold flex items-center gap-1.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block" />
+                    Optimal Channel
+                  </span>
+                )}
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Canvas Status & Controls Info Bar */}
+      <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between pointer-events-none">
+        {/* Legend */}
+        <div className="glass rounded-xl px-3 py-1.5 border border-border/60 flex items-center gap-3 text-[11px] text-charcoal">
+          <div className="flex items-center gap-1.5">
+            <div className="w-2.5 h-2.5 rounded-full bg-sfblue" />
+            <span>Optimal</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <div className="w-2.5 h-2.5 rounded-full border border-sfblue border-dashed" />
+            <span>Scheduling Starvation</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <div className="w-2.5 h-2.5 rounded-full bg-red-500" />
+            <span>Physical Starvation (&lt;10 dB)</span>
+          </div>
+        </div>
+
+        {/* Hover Hint */}
+        <div className="glass rounded-xl px-2.5 py-1.5 border border-border/60 text-[10px] text-muted">
+          Arahkan kursor ke node untuk inspeksi individual
+        </div>
+      </div>
+
+      {/* Pause Backdrop Overlay */}
       {!isRunning && (
-        <div className="absolute inset-0 flex items-center justify-center bg-white/60 backdrop-blur-sm rounded-xl">
-          <div className="text-center">
-            <div className="text-4xl mb-2">⏸</div>
-            <p className="text-muted text-sm font-medium">Simulasi dijeda</p>
+        <div className="absolute inset-0 flex items-center justify-center bg-white/50 backdrop-blur-xs rounded-xl pointer-events-none">
+          <div className="text-center glass px-5 py-3 rounded-2xl border border-border/80 shadow-card">
+            <div className="w-7 h-7 mx-auto mb-1.5 rounded-lg bg-border/40 flex items-center justify-center text-charcoal">
+              <svg width="12" height="12" fill="currentColor">
+                <rect x="1" y="1" width="3.5" height="10" rx="1"/>
+                <rect x="7.5" y="1" width="3.5" height="10" rx="1"/>
+              </svg>
+            </div>
+            <p className="text-charcoal text-xs font-semibold">Simulasi Dijeda</p>
+            <p className="text-muted text-[10px]">Tekan "Resume" untuk melanjutkan iterasi waktu</p>
           </div>
         </div>
       )}
