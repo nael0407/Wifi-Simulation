@@ -1,6 +1,7 @@
-# 📡 WiFi Network Performance Simulator
+# WiFi Network Performance Simulator
 ### *Stochastic $M(t)/G/1/K$ Multi-Class Queueing & Wireless Propagation Engine*
 
+[![Live Demo](https://img.shields.io/badge/Live_Demo-wifi--simulation.vercel.app-0071E3?logo=vercel&logoColor=white)](https://wifi-simulation.vercel.app/)
 [![React](https://img.shields.io/badge/React-18.3.1-61DAFB?logo=react&logoColor=black)](https://react.dev/)
 [![Vite](https://img.shields.io/badge/Vite-5.4.8-646CFF?logo=vite&logoColor=white)](https://vitejs.dev/)
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-3.4.14-38B2AC?logo=tailwind-css&logoColor=white)](https://tailwindcss.com/)
@@ -9,32 +10,50 @@
 
 An industry-grade, interactive web-based simulation platform designed to model and evaluate **heterogeneous wireless network performance** under stochastic conditions. Built around an **$M(t)/G/1/K$ multi-class queueing model**, the simulator bridges theoretical queueing systems, empirical propagation models, and MAC-layer scheduling mechanisms to analyze throughput degradation, blocking probabilities, and user starvation in high-density WiFi environments.
 
+**Live Interactive Deployment**: [https://wifi-simulation.vercel.app/](https://wifi-simulation.vercel.app/)
+
 ---
 
-## 📑 Table of Contents
+## Table of Contents
 
-- [Overview & Problem Context](#-overview--problem-context)
-- [Why Stochastic Modeling?](#-why-stochastic-modeling)
-- [Key Features](#-key-features)
-- [System Architecture](#-system-architecture)
-- [Mathematical & Theoretical Formulation](#-mathematical--theoretical-formulation)
+- [Live Demo](#live-demo)
+- [Overview & Problem Context](#overview--problem-context)
+- [Why Stochastic Modeling?](#why-stochastic-modeling)
+- [Key Features](#key-features)
+- [System Architecture](#system-architecture)
+- [Mathematical & Theoretical Formulation](#mathematical--theoretical-formulation)
   - [1. Queueing Model: $M(t)/G/1/K$ Multi-Class](#1-queueing-model-mtg1k-multi-class)
   - [2. Non-Homogeneous Poisson Arrival Process (NHPP)](#2-non-homogeneous-poisson-arrival-process-nhpp)
   - [3. Wireless Channel Propagation & Shannon-Hartley Capacity](#3-wireless-channel-propagation--shannon-hartley-capacity)
   - [4. MAC Layer Scheduling: Best Effort vs. WFQ](#4-mac-layer-scheduling-best-effort-vs-wfq)
   - [5. System Stability & Erlang-B Blocking Probability](#5-system-stability--erlang-b-blocking-probability)
-- [Traffic Classification Matrix](#-traffic-classification-matrix)
-- [Tech Stack & Engineering Design](#-tech-stack--engineering-design)
-- [Project Structure](#-project-structure)
-- [Getting Started](#-getting-started)
-- [Case Studies & Experimental Scenarios](#-case-studies--experimental-scenarios)
-- [Academic References](#-academic-references)
-- [Team & Acknowledgments](#-team--acknowledgments)
-- [License](#-license)
+- [Traffic Classification Matrix](#traffic-classification-matrix)
+- [Tech Stack & Engineering Design](#tech-stack--engineering-design)
+- [Project Structure](#project-structure)
+- [Getting Started](#getting-started)
+- [Case Studies & Experimental Scenarios](#case-studies--experimental-scenarios)
+- [Academic References](#academic-references)
+- [Team & Acknowledgments](#team--acknowledgments)
+- [License](#license)
 
 ---
 
-## 🎯 Overview & Problem Context
+## Live Demo
+
+The application is deployed on Vercel and fully interactive in any modern browser:
+
+**URL**: [https://wifi-simulation.vercel.app/](https://wifi-simulation.vercel.app/)
+
+Features available in the live build:
+* Real-time 60 FPS HTML5 Canvas radio spectrum visualizer
+* Interactive node inspection on mouse hover (distance, $P_{\text{rx}}$, SINR, Shannon limit, SLA status)
+* Side-by-side comparison between Best Effort and Weighted Fair Queueing (WFQ)
+* 5 one-click scenario presets (Balanced, Bulk Download Spike, Collaboration Rush, Severe Shadowing, Night Streaming)
+* CSV telemetry export for empirical evaluation and research logs
+
+---
+
+## Overview & Problem Context
 
 In high-density environments (campuses, enterprise workspaces, cafes, and transportation hubs), a single IEEE 802.11 Access Point (AP) simultaneously serves users with sharply diverging traffic requirements:
 - Low-latency interactive media (e.g., Zoom, Google Meet, VoIP)
@@ -48,7 +67,7 @@ This project delivers a **first-principles mathematical simulation** with an int
 
 ---
 
-## 🎲 Why Stochastic Modeling?
+## Why Stochastic Modeling?
 
 Real-world wireless local area networks (WLANs) are governed by inherent uncertainties that cannot be captured by static, deterministic approximations:
 
@@ -60,66 +79,77 @@ Real-world wireless local area networks (WLANs) are governed by inherent uncerta
 
 ---
 
-## ⚡ Key Features
+## Key Features
 
 * **Real-Time 2D HTML5 Canvas Visualization**:
   * Centered AP with dynamic range circles ($25\%$, $50\%$, $75\%$, $100\%$ of $d_{\max}$).
   * Dynamic user nodes positioned by spatial coordinates and distance $d_i$.
   * Visual opacity reflecting instantaneous SINR / link quality.
   * Node arrival and departure particle feedback.
+  * Retina / High-DPI crisp rendering scaling automatically with `window.devicePixelRatio`.
+* **Interactive Node Telemetry Inspector**:
+  * Hovering any active user node displays a floating popover showing individual RF link telemetry, distance, received signal power ($P_{\text{rx}}$), SINR, Shannon limit, scheduler share, and SLA compliance status.
 * **Dual-Taxonomy Starvation Detection**:
-  * 🔴 **Physical-Channel Starvation**: Users suffering severe RF degradation ($\text{SINR} < 10$) near the cell boundary, requiring physical relocation or beamforming.
-  * 🔵 **Scheduling-Limited Starvation**: Users receiving $< 60\%$ of fair share due to scheduler congestion or resource monopolization by aggressive classes.
+  * **Physical-Channel Starvation**: Users suffering severe RF degradation ($\text{SINR} < 10\text{ dB}$) near the cell boundary, requiring physical relocation or AP densification.
+  * **Scheduling-Limited Starvation**: Users receiving $< 60\%$ of fair share due to scheduler congestion or resource monopolization by aggressive classes.
 * **Dynamic QoS Scheduling Comparison**:
   * **Best Effort (BE)**: Fair round-robin / equal slice ($C / N_{\text{total}}$).
-  * **Weighted Fair Queueing (WFQ)**: Priority-weighted allocation protecting mission-critical transactions and real-time collaboration.
+  * **Weighted Fair Queueing (WFQ)**: Work-conserving Generalized Processor Sharing (GPS) priority-weighted allocation protecting mission-critical transactions and real-time collaboration.
 * **Non-Homogeneous Poisson Process (NHPP) Engine**:
-  * 5 discrete diurnal periods: *Dini Hari* (01:00–06:00), *Pagi* (06:00–11:00), *Siang* (11:00–14:00), *Sore* (14:00–20:00), and *Malam* (20:00–01:00).
+  * 5 discrete diurnal periods: Dini Hari (01:00–06:00), Pagi (06:00–11:00), Siang (11:00–14:00), Sore (14:00–20:00), and Malam (20:00–01:00).
   * Automated diurnal clock progression with speed multipliers ($0.5\times$, $1\times$, $2\times$, $4\times$).
 * **Bento UI Metrics Dashboard**:
   * Active connections vs. total buffer capacity ($N / K$).
   * Empirical session blocking rate ($P_{\text{block}}$).
   * Instantaneous traffic intensity ($\rho(t)$) with stability threshold alerts ($\rho \ge 1.0$).
   * Theoretical Erlang-B blocking probability ($P_K(t)$).
-  * Per-class throughput distribution bars with active user counts.
+  * Estimated RTT contention latency (ms).
+  * SLA compliance percentage based on per-class bandwidth thresholds.
+  * Per-class throughput distribution bars with active user counts and SLA target indicators.
 * **Telemetry Charts via Recharts**:
-  * Continuous multi-metric timeline tracking active users, blocking percentage, total arrival rate $\lambda_{\text{total}}(t)$, and traffic intensity $\rho(t)$ over a rolling 200-sample window.
+  * Multi-metric timeline with switchable view modes: *Queueing & Traffic* and *QoS & Latency*.
+* **One-Click Scenario Presets**:
+  * Instantly test edge cases: Balanced Standard, Bulk Download Spike, Collaboration Rush, Severe Shadowing, and Night Streaming.
+* **Data Export**:
+  * Download complete simulation time-series telemetry in CSV format for research papers and laboratory analysis.
 
 ---
 
-## 🏗 System Architecture
+## System Architecture
 
 The simulation engine is fully decoupled from the React rendering layer, ensuring deterministic calculations and high frame rates ($60\text{ FPS}$).
 
 ```mermaid
 flowchart TD
-    subgraph UI_Controls ["🎛 Control & Configuration Layer"]
+    subgraph UI_Controls ["Control & Configuration Layer"]
         A[User Parameters: K, C, B, Ptx, n, sigma, scheduling, lambdas] --> B[Simulation Controller / Tick Dispatcher]
+        PRE[One-Click Scenario Presets] --> A
         TIME[Diurnal Clock Engine] --> B
     end
 
-    subgraph Sim_Engine ["⚙ Stochastic Simulation Engine (simulationEngine.js)"]
+    subgraph Sim_Engine ["Stochastic Simulation Engine (simulationEngine.js)"]
         B --> C["1. NHPP Generator: lambda_i(t) = lambda_i * f_i(t)"]
-        C --> D["2. Poisson Arrival & Erlang Capacity Check (N < K)"]
+        C --> D["2. Poisson Sampling & Buffer Capacity Check (N < K)"]
         D -->|Capacity Exceeded| BLK["Rejection / Blocked Event Counter"]
         D -->|Connection Accepted| E["3. Physical Channel Sampling (Distance & Shadow Fading)"]
         E --> F["4. Shannon-Hartley Capacity Calculation (C_shannon)"]
-        F --> G["5. Scheduler Bandwidth Allocation (BE vs. WFQ)"]
+        F --> G["5. Scheduler Bandwidth Allocation (BE vs. Work-Conserving WFQ)"]
         G --> H["6. Throughput Computation: T_act = min(C_shannon, BW_share)"]
         H --> I["7. Departure Processing: Exp(mu_i) Service Time Countdown"]
-        I --> J["8. Queue State Aggregator: rho(t), P_K(t), Throughput Distribution"]
+        I --> J["8. Queue State Aggregator: rho(t), P_K(t), Latency, SLA Compliance"]
     end
 
-    subgraph Presentation ["🖥 Presentation & Telemetry Layer"]
-        J --> K["Live Network Canvas (HTML5 2D Context)"]
-        J --> L["Bento KPI Cards & Status Indicators"]
-        J --> M["Recharts Rolling Telemetry Charts"]
+    subgraph Presentation ["Presentation & Telemetry Layer"]
+        J --> K["Live Network Canvas (HTML5 2D Context + Node Hover Inspector)"]
+        J --> L["Bento KPI Cards & SLA Status Indicators"]
+        J --> M["Recharts Rolling Telemetry Charts (Traffic & QoS Modes)"]
+        J --> N["CSV Telemetry Exporter"]
     end
 ```
 
 ---
 
-## 📐 Mathematical & Theoretical Formulation
+## Mathematical & Theoretical Formulation
 
 ### 1. Queueing Model: $M(t)/G/1/K$ Multi-Class
 Using Kendall's extended notation:
@@ -164,33 +194,33 @@ The scheduler assigns each active user a nominal bandwidth share $\text{BW}_{\te
 * **Best Effort (BE - Equal Share)**:
   $$\text{BW}_{\text{share, BE}}(j) = \frac{C_{\text{AP}}}{N_{\text{total}}}$$
 
-* **Weighted Fair Queueing (WFQ)**:
-  $$\text{BW}_{\text{share, WFQ}}(j) = \frac{C_{\text{AP}} \cdot w_{\text{class}(j)}}{\left(\sum_{k=0}^5 w_k\right) \cdot N_{\text{class}(j)}}$$
+* **Weighted Fair Queueing (WFQ - Work-Conserving GPS)**:
+  $$\text{BW}_{\text{share, WFQ}}(j) = \frac{C_{\text{AP}} \cdot w_{\text{class}(j)}}{\left(\sum_{k \in \text{Active}} w_k\right) \cdot N_{\text{class}(j)}}$$
 
 The actual throughput achieved by user $j$ is the minimum of their physical channel capacity and scheduler quota:
 $$T_{\text{actual}}(j) = \min\left(C_{\text{Shannon}}(j),\, \text{BW}_{\text{share}}(j)\right)$$
 
 ### 5. System Stability & Erlang-B Blocking Probability
-Instantaneous traffic intensity per class and total system load:
-$$\rho_i(t) = \frac{\lambda_i(t)}{\mu_i}, \qquad \rho_{\text{total}}(t) = \sum_{i=0}^5 \rho_i(t)$$
+Total offered load in Erlangs and normalized system traffic intensity:
+$$A(t) = \sum_{i=0}^5 \frac{\lambda_i(t)}{\mu_i}, \qquad \rho(t) = \frac{A(t)}{K}$$
 
 Under finite capacity $K$, the theoretical connection blocking probability (Erlang-B loss formula) is:
-$$P_K(t) = \frac{\rho_{\text{total}}(t)^K \cdot (1 - \rho_{\text{total}}(t))}{1 - \rho_{\text{total}}(t)^{K+1}}$$
+$$P_K(t) = \frac{\rho(t)^K \cdot (1 - \rho(t))}{1 - \rho(t)^{K+1}}$$
 
-* **Stability criterion**: $\rho_{\text{total}}(t) < 1.0$. When $\rho_{\text{total}}(t) \ge 1.0$, the queue enters an unstable/saturated state where blocking escalates rapidly.
+* **Stability criterion**: $\rho(t) < 1.0$. When $\rho(t) \ge 1.0$, system demand exceeds the maximum concurrent association capacity $K$, driving buffer saturation and elevated rejection rates.
 
 ---
 
-## 📊 Traffic Classification Matrix
+## Traffic Classification Matrix
 
-| ID | Class Name | Typical Applications | Default $\lambda_i$ (usr/min) | $\mu_i$ (${\text{min}}^{-1}$) | Mean Sesi ($1/\mu_i$) | WFQ Weight ($w_i$) | QoS Sensitivity |
-|:--:|:-----------|:---------------------|:-----------------------------:|:-----------------------------:|:---------------------:|:------------------:|:----------------|
-| **0** | **Komunikasi** | WhatsApp, Telegram, VoIP, Email | `1.5` | `0.500` | $2.0\text{ min}$ | **4** | Latency, Jitter |
-| **1** | **Pertukaran Data** | Google Drive, Dropbox, FTP | `0.8` | `0.100` | $10.0\text{ min}$ | **1** | Throughput |
-| **2** | **Akses Info** | Web browsing, Portal Berita | `2.0` | `0.300` | $3.3\text{ min}$ | **3** | Page Load Time |
-| **3** | **Hiburan** | YouTube, Netflix, Spotify | `1.2` | `0.020` | $50.0\text{ min}$ | **2** | Sustained Bitrate |
-| **4** | **Transaksi** | Mobile Banking, QRIS, Payment API | `0.5` | `2.000` | $0.5\text{ min}$ | **5** | Loss, Initial Delay |
-| **5** | **Kolaborasi** | Zoom, Google Meet, Miro | `0.6` | `0.015` | $66.7\text{ min}$ | **5** | Latency, Jitter, Loss |
+| ID | Class Name | Typical Applications | Default $\lambda_i$ (usr/min) | $\mu_i$ (${\text{min}}^{-1}$) | Mean Sesi ($1/\mu_i$) | WFQ Weight ($w_i$) | SLA Min Target | QoS Sensitivity |
+|:--:|:-----------|:---------------------|:-----------------------------:|:-----------------------------:|:---------------------:|:------------------:|:--------------:|:----------------|
+| **0** | **Komunikasi** | WhatsApp, Telegram, VoIP, Email | `1.5` | `0.500` | $2.0\text{ min}$ | **4** | $\ge 0.3\text{ Mbps}$ | Latency, Jitter |
+| **1** | **Pertukaran Data** | Google Drive, Dropbox, FTP | `0.8` | `0.100` | $10.0\text{ min}$ | **1** | $\ge 8.0\text{ Mbps}$ | Throughput |
+| **2** | **Akses Info** | Web browsing, Portal Berita | `2.0` | `0.300` | $3.3\text{ min}$ | **3** | $\ge 1.0\text{ Mbps}$ | Page Load Time |
+| **3** | **Hiburan** | YouTube, Netflix, Spotify | `1.2` | `0.020` | $50.0\text{ min}$ | **2** | $\ge 3.0\text{ Mbps}$ | Sustained Bitrate |
+| **4** | **Transaksi** | Mobile Banking, QRIS, Payment API | `0.5` | `2.000` | $0.5\text{ min}$ | **5** | $\ge 0.2\text{ Mbps}$ | Loss, Initial Delay |
+| **5** | **Kolaborasi** | Zoom, Google Meet, Miro | `0.6` | `0.015` | $66.7\text{ min}$ | **5** | $\ge 3.0\text{ Mbps}$ | Latency, Jitter, Loss |
 
 ### Diurnal Temporal Scaling Multipliers $f_i(t)$
 
@@ -204,25 +234,25 @@ $$P_K(t) = \frac{\rho_{\text{total}}(t)^K \cdot (1 - \rho_{\text{total}}(t))}{1 
 
 ---
 
-## 🛠 Tech Stack & Engineering Design
+## Tech Stack & Engineering Design
 
 ```
 Frontend Architecture
 ├── Core: React 18 (Hooks, Refs, Context-free reactive state)
 ├── Build System: Vite 5 (Fast ESM HMR & optimized production bundling)
 ├── Styling: Tailwind CSS 3 (Apple Human Interface / Bento UI aesthetics)
-├── Visualization: HTML5 Canvas 2D API (High-performance 60 FPS animation)
+├── Visualization: HTML5 Canvas 2D API (High-performance 60 FPS animation with DPI scaling)
 └── Telemetry: Recharts 2 (Responsive SVG time-series charts)
 ```
 
 ### Engineering Highlights:
 * **Zero Frame-Drop Rendering**: Canvas drawing runs on an isolated `requestAnimationFrame` loop driven by component references (`useRef`), preventing React re-render thrashing during continuous state steps.
 * **Deterministic Discrete-Time Stepping**: The simulation clock advances by configurable increments ($\Delta t = 0.5\text{ simulated minutes}$ per tick) independent of presentation rendering.
-* **Responsive Bento Layout**: Adapts cleanly across full-HD desktop environments with a collapsible control sidebar and dedicated metric panels.
+* **Responsive Bento Layout**: Adapts cleanly across desktop displays with a collapsible control sidebar and dedicated metric telemetry cards.
 
 ---
 
-## 📂 Project Structure
+## Project Structure
 
 ```bash
 Wifi-Simulation/
@@ -235,17 +265,17 @@ Wifi-Simulation/
     ├── App.jsx                  # Main application orchestrator & layout shell
     ├── index.css                # Global styles, typography, and utility classes
     ├── main.jsx                 # React DOM mount entry
-    ├── simulationEngine.js      # Pure mathematical engine (M(t)/G/1/K, Shannon, WFQ)
+    ├── simulationEngine.js      # Pure mathematical engine (M(t)/G/1/K, Shannon, WFQ, CSV)
     └── components/
-        ├── NetworkCanvas.jsx    # 2D Canvas renderer for AP, cells, and user nodes
+        ├── NetworkCanvas.jsx    # 2D Canvas renderer with hover telemetry popover
         ├── MetricDashboard.jsx  # Bento dashboard for KPIs and throughput bars
-        ├── SidebarPanel.jsx     # Parameter control sliders and configuration toggles
-        └── TimelineChart.jsx    # Real-time Recharts line graphs for rolling metrics
+        ├── SidebarPanel.jsx     # Parameter control sliders and scenario presets
+        └── TimelineChart.jsx    # Switchable real-time Recharts line graphs
 ```
 
 ---
 
-## 🚀 Getting Started
+## Getting Started
 
 ### Prerequisites
 * **Node.js**: `v18.0.0` or higher
@@ -278,10 +308,10 @@ Wifi-Simulation/
 
 ---
 
-## 🔬 Case Studies & Experimental Scenarios
+## Case Studies & Experimental Scenarios
 
 ### Scenario 1: Best Effort Collapse under Bulk Transfer Spike
-* **Setup**: Increase *Pertukaran Data* arrival rate $\lambda_1 = 4.0\text{ usr/min}$, keep scheduling mode on `Best Effort`.
+* **Setup**: Increase *Pertukaran Data* arrival rate $\lambda_1 = 4.5\text{ usr/min}$, keep scheduling mode on `Best Effort`.
 * **Observed Dynamic**: Because file transfer sessions have long holding times ($1/\mu_1 = 10\text{ min}$), active data users rapidly occupy capacity slots ($K$). Each user receives equal slice ($C/N$), causing the bandwidth of real-time classes (*Kolaborasi* & *Komunikasi*) to drop below their minimum acceptable threshold ($< 3\text{ Mbps}$), leading to audio-video stutter.
 
 ### Scenario 2: WFQ QoS Protection for High-Priority Traffic
@@ -289,12 +319,12 @@ Wifi-Simulation/
 * **Observed Dynamic**: The WFQ scheduler enforces weight partitioning ($w_5 = 5$ for Collaboration vs. $w_1 = 1$ for Data Transfer). Collaboration streams sustain guaranteed bandwidth throughput even as bulk transfers queue up, verifying the isolation property of fair queueing.
 
 ### Scenario 3: Physical vs. Scheduling Starvation Disparity
-* **Setup**: Set $d_{\max} = 40\text{ m}$ and increase Path Loss Exponent $n = 3.8$.
-* **Observed Dynamic**: Nodes situated in the outer ring ($> 30\text{ m}$) display physical starvation (highlighted in red) with $\text{SINR} < 10\text{ dB}$, yielding Shannon capacities $< 1\text{ Mbps}$ despite ample scheduler quota. This demonstrates that QoS scheduling cannot overcome physical path loss without AP densification or transmission power adjustments.
+* **Setup**: Set $d_{\max} = 45\text{ m}$ and increase Path Loss Exponent $n = 3.8$, $\sigma = 11\text{ dB}$.
+* **Observed Dynamic**: Nodes situated in the outer ring display physical starvation with $\text{SINR} < 10\text{ dB}$, yielding Shannon capacities $< 1\text{ Mbps}$ despite ample scheduler quota. This demonstrates that QoS scheduling cannot overcome physical path loss without AP densification or transmission power adjustments.
 
 ---
 
-## 📚 Academic References
+## Academic References
 
 1. **Kleinrock, L. (1976).** *Queueing Systems, Volume 1: Theory.* John Wiley & Sons. *(Foundational theory for $M/G/1/K$ systems and multi-class traffic conservation laws).*
 2. **Goldsmith, A. (2005).** *Wireless Communications.* Cambridge University Press. *(Log-distance path loss, log-normal shadowing, and Shannon capacity over fading channels).*
@@ -303,7 +333,7 @@ Wifi-Simulation/
 
 ---
 
-## 👥 Team & Acknowledgments
+## Team & Acknowledgments
 
 Developed by Department of Electrical Engineering and Information Technology, **Universitas Gadjah Mada (UGM)**:
 
@@ -313,7 +343,6 @@ Developed by Department of Electrical Engineering and Information Technology, **
 
 ---
 
-## 📄 License
+## License
 
 This project is open-source and distributed under the [MIT License](LICENSE).
-
