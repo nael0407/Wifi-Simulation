@@ -160,55 +160,102 @@ Using Kendall's extended queueing notation:
 * **Multi-Class**: 6 distinct traffic classes with independent parameters (λ_i, μ_i, w_i).
 
 ### 2. Non-Homogeneous Poisson Arrival Process (NHPP)
+
 Arrivals for each class i ∈ {0, ..., 5} follow an independent non-homogeneous Poisson process:
-$$A_i(t) \sim \text{Poisson}(\lambda_i(t))$$
-$$\lambda_i(t) = \lambda_{i,\text{base}} \times f_i(t)$$
+
+```math
+A_i(t) \sim \text{Poisson}(\lambda_i(t))
+```
+
+```math
+\lambda_i(t) = \lambda_{i,\text{base}} \times f_i(t)
+```
 
 By the superposition theorem of independent Poisson processes, the total arrival rate is:
-$$\lambda_{\text{total}}(t) = \sum_{i=0}^5 \lambda_i(t)$$
+
+```math
+\lambda_{\text{total}}(t) = \sum_{i=0}^5 \lambda_i(t)
+```
 
 ### 3. Wireless Channel Propagation & Shannon-Hartley Capacity
+
 For each newly arrived user j, the distance from the AP is uniformly sampled:
-$$d_j \sim \text{Uniform}(d_{\min}, d_{\max})$$
+
+```math
+d_j \sim \text{Uniform}(d_{\min}, d_{\max})
+```
 
 Signal attenuation obeys the log-distance path loss model with log-normal shadow fading:
-$$\text{PL}(d_j) = \text{PL}(d_0) + 10n \log_{10}\left(\frac{d_j}{d_0}\right) + X_\sigma \quad [\text{dB}]$$
+
+```math
+\text{PL}(d_j) = \text{PL}(d_0) + 10n \log_{10}\left(\frac{d_j}{d_0}\right) + X_\sigma \quad [\text{dB}]
+```
+
 where:
-* d_0 = 1.0 m (reference distance)
-* PL(d_0) = 40.0 dB (attenuation at 1 m)
-* n: Path loss exponent (2.0 ≤ n ≤ 4.5)
-* X_σ ~ N(0, σ²): Shadow fading random variable
+* `d_0 = 1.0 m` (reference distance)
+* `PL(d_0) = 40.0 dB` (attenuation at 1 m)
+* `n`: Path loss exponent (2.0 ≤ n ≤ 4.5)
+* `X_σ ~ N(0, σ²)`: Shadow fading random variable
 
 The received power P_rx(j) and Signal-to-Interference-plus-Noise Ratio (SINR) are:
-$$P_{\text{rx}}(j) = P_{\text{tx}} - \text{PL}(d_j) \quad [\text{dBm}]$$
-$$\text{SINR}(j) = \frac{10^{(P_{\text{rx}}(j) - 30)/10}}{10^{(P_{\text{noise}} - 30)/10}}$$
+
+```math
+P_{\text{rx}}(j) = P_{\text{tx}} - \text{PL}(d_j) \quad [\text{dBm}]
+```
+
+```math
+\text{SINR}(j) = \frac{10^{(P_{\text{rx}}(j) - 30)/10}}{10^{(P_{\text{noise}} - 30)/10}}
+```
+
 where thermal noise floor P_noise = -90 dBm.
 
 By the **Shannon-Hartley theorem**, the physical channel upper bound is:
-$$C_{\text{Shannon}}(j) = B \cdot \log_2(1 + \text{SINR}(j)) \quad [\text{Mbps}]$$
+
+```math
+C_{\text{Shannon}}(j) = B \cdot \log_2(1 + \text{SINR}(j)) \quad [\text{Mbps}]
+```
+
 where B is the channel bandwidth in MHz (20, 40, 80 MHz).
 
 ### 4. MAC Layer Scheduling: Best Effort vs. WFQ
-The scheduler assigns each active user a nominal bandwidth share BW_share based on the active policy:
+
+The scheduler assigns each active user a nominal bandwidth share `BW_share` based on the active policy:
 
 * **Best Effort (BE - Equal Share)**:
-  $$\text{BW}_{\text{share, BE}}(j) = \frac{C_{\text{AP}}}{N_{\text{total}}}$$
+  ```math
+  \text{BW}_{\text{share, BE}}(j) = \frac{C_{\text{AP}}}{N_{\text{total}}}
+  ```
 
 * **Weighted Fair Queueing (WFQ - Work-Conserving GPS)**:
-  $$\text{BW}_{\text{share, WFQ}}(j) = \frac{C_{\text{AP}} \cdot w_{\text{class}(j)}}{\left(\sum_{k \in \text{Active}} w_k\right) \cdot N_{\text{class}(j)}}$$
+  ```math
+  \text{BW}_{\text{share, WFQ}}(j) = \frac{C_{\text{AP}} \cdot w_{\text{class}(j)}}{\left(\sum_{k \in \text{Active}} w_k\right) \cdot N_{\text{class}(j)}}
+  ```
 
 The actual throughput achieved by user j is the minimum of their physical channel capacity and scheduler quota:
-$$T_{\text{actual}}(j) = \min\left(C_{\text{Shannon}}(j),\, \text{BW}_{\text{share}}(j)\right)$$
+
+```math
+T_{\text{actual}}(j) = \min\left(C_{\text{Shannon}}(j),\, \text{BW}_{\text{share}}(j)\right)
+```
 
 ### 5. System Stability & Erlang-B Blocking Probability
+
 Total offered load in Erlangs and normalized system traffic intensity:
-$$A(t) = \sum_{i=0}^5 \frac{\lambda_i(t)}{\mu_i}, \qquad \rho(t) = \frac{A(t)}{K}$$
+
+```math
+A(t) = \sum_{i=0}^5 \frac{\lambda_i(t)}{\mu_i}, \qquad \rho(t) = \frac{A(t)}{K}
+```
 
 Under finite capacity of K parallel connection servers and zero waiting buffer, the theoretical connection blocking probability is governed by the exact **Erlang-B loss formula** (M/M/K/K):
-$$B(K, A(t)) = \frac{\frac{A(t)^K}{K!}}{\sum_{n=0}^K \frac{A(t)^n}{n!}}$$
+
+```math
+B(K, A(t)) = \frac{\frac{A(t)^K}{K!}}{\sum_{n=0}^K \frac{A(t)^n}{n!}}
+```
 
 In the simulation engine, this is evaluated using the numerically stable backwards recurrence:
-$$B_0 = 1, \qquad B_m = \frac{A(t) \cdot B_{m-1}}{m + A(t) \cdot B_{m-1}} \quad \text{for } m = 1, 2, \dots, K$$
+
+```math
+B_0 = 1, \qquad B_m = \frac{A(t) \cdot B_{m-1}}{m + A(t) \cdot B_{m-1}} \quad \text{for } m = 1, 2, \dots, K
+```
 
 * **Stability criterion**: ρ(t) < 1.0. When ρ(t) ≥ 1.0, offered traffic load exceeds the total server pool capacity K, driving peak connection rejections.
 
